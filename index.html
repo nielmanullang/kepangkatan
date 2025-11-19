@@ -253,10 +253,19 @@
         const expectedTmt = addYearsMonths(tmtPrev, adjustedYear, adjustedMonth);
 
         if (!sameYearMonth(expectedTmt, tmtCurr)) {
-          const expYm = `${expectedTmt.getFullYear()}-${String(expectedTmt.getMonth() + 1).padStart(2, '0')}`;
-          const currYm = `${tmtCurr.getFullYear()}-${String(tmtCurr.getMonth() + 1).padStart(2, '0')}`;
-          alert(`Baris ke-${i + 1}: TMT tidak konsisten.\nSelisih MK: ${dYear} tahun ${dMonth} bulan.\nPengurang karena transisi: ${pengurangTahun} tahun.\nTMT yang diharapkan: ${expYm}, TMT saat ini: ${currYm}.`);
-          return;
+            const expYm = `01/${String(expectedTmt.getMonth() + 1).padStart(2, '0')}/${expectedTmt.getFullYear()}`;
+            const currYm = `01/${String(tmtCurr.getMonth() + 1).padStart(2, '0')}/${tmtCurr.getFullYear()}`;
+
+            let pesan = `Baris ke-${i + 1}: TMT tidak konsisten.\nSelisih MK: ${dYear} tahun ${dMonth} bulan.`;
+            
+            if (pengurangTahun > 0) {
+                pesan += `\nPengurang karena transisi: ${pengurangTahun} tahun.`;
+            }
+
+            pesan += `\nTMT yang diharapkan: ${expYm}, TMT saat ini: ${currYm}.`;
+
+            alert(pesan);
+            return;
         }
       }
 
