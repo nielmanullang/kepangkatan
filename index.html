@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kepangkatan</title>
+
+  <!-- Bootstrap (optional, for the same classes to look good) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <div class="container my-4">
+    <h3>Kepangkatan</h3>
+
+    <!-- Use action="" to submit to the same page; you can change it to any URL -->
+    <form method="GET" action="">
+      <table class="table table-bordered" id="dynamicTable">
+        <thead>
+          <tr>
+            <th>Jenis</th>
+            <th>Pangkat</th>
+            <th>Masa Kerja (Tahun)</th>
+            <th>Masa Kerja (Bulan)</th>
+            <th>TMT</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <select name="data[0][jenis]" class="form-control jenis-select"></select>
+            </td>
+            <td>
+              <select name="data[0][pangkat]" class="form-control pangkat-select"></select>
+            </td>
+            <td><input type="number" name="data[0][masa_kerja_tahun]" class="form-control" min="0" /></td>
+            <td><input type="number" name="data[0][masa_kerja_bulan]" class="form-control" min="0" max="11" /></td>
+            <td><input type="date" name="data[0][tmt]" class="form-control" /></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" id="validateBtn">Pemeriksaan</button>
+        <button type="submit" class="btn btn-outline-secondary">Kirim (GET)</button>
+      </div>
+    </form>
+
+    <!-- This block shows submitted data from the query string (replaces the Blade @if/print_r) -->
+    <div id="submittedData" class="mt-4" style="display:none;">
+      <h4>Data Terkirim:</h4>
+      <pre id="submittedDataPre" class="bg-light p-3 border rounded"></pre>
+    </div>
+  </div>
+
+  <script>
+    let i = 0;
+    const pangkatList = ['1A','1B','1C','1D','2A','2B','2C','2D','3A','3B','3C','3D','4A','4B','4C','4D','4E'];
+    const jenisUrutanTetap = ['cpns','pns', ...Array.from({length: 10}, (_, i) => `pangkat${i+1}`)];
+    const jenisOpsional = ['penambahan_masa_kerja'];
+    const jenisList = [...jenisUrutanTetap, ...jenisOpsional];
+
+    function updateJenisOptions() {
+      const selectedJenis = Array.from(document.querySelectorAll('.jenis-select')).map(sel => sel.value);
+      document.querySelectorAll('.jenis-select').forEach(sel => {
+        const currentValue = sel.value;
+        const availableJenis = jenisUrutanTetap.filter(j => !selectedJenis.includes(j) || j === currentValue);
+        const optionalJenis = jenisOpsional.filter(j => !selectedJenis.includes(j) || j === currentValue);
+        const allJenis = availableJenis.concat(optionalJenis);
+        sel.innerHTML = allJenis.map(jenis => {
+          const label =
+            jenis === 'cpns' ? 'CPNS' :
+            jenis === 'pns' ? 'PNS' :
+            jenis === 'penambahan_masa_kerja' ? 'Penambahan Masa Kerja' :
+            jenis.replace('pangkat', 'Kenaikan Pangkat ');
+          return `<option value="${jenis}" ${jenis === currentValue ? 'selected' : ''}>${label}</option>`;
+        }).join('');
+      });
+    }
+
+    function updatePangkatOptions() {
+      const selectedValues = Array.from(document.querySelectorAll('.pangkat-select')).map(sel => sel.value);
+      let maxIndex = -1;
+      selectedValues.forEach(val => {
+        const idx = pangkatList.indexOf(val);
+        if (idx > maxIndex) maxIndex = idx;
+      });
+      document.querySelectorAll('.pangkat-select').forEach(sel => {
+        const currentValue = sel.value;
+        sel.innerHTML = pangkatList.map((p, idx) => {
+          if (idx >= maxIndex || p === currentValue) {
+            return `<option value="${p}" ${p === currentValue ? 'selected' : ''}>${p}</option>`;
+          }
+          return '';
+        }).join('');
+      });
+    }
+
+    function rebuildActionButtons() {
+      const rows = document.querySelectorAll('#dynamicTable tbody tr');
+      const selectedJenis = Array.from(document.querySelectorAll('.jenis-select')).map(sel => sel.value);
+      const remainingJenis = jenisList.filter(jenis => !selectedJenis.includes(jenis));
+      const selectedPangkat = Array.from(document.querySelectorAll('.pangkat-select')).map(sel => sel.value);
+      let maxPangkatIndex = -1;
+      selectedPangkat.forEach(val => {
+        const idx = pangkatList.indexOf(val);
+        if (idx > maxPangkatIndex) maxPangkatIndex = idx;
+      });
+      const remainingPangkat = pangkatList.slice(maxPangkatIndex);
+      const canAddRow = remainingJenis.length > 0 && remainingPangkat.length > 0;
+
+      rows.forEach((row, idx) => {
+        const actionCell = row.querySelector('td:last-child');
+        if (rows.length === 1) {
+          actionCell.innerHTML = canAddRow
+            ? `<button type="button" class="btn btn-success add-tr">Tambah</button>`
+            : '';
+        } else if (idx === rows.length - 1) {
+          actionCell.innerHTML = canAddRow
+            ? `<button type="button" class="btn btn-success add-tr">Tambah</button>`
+            : '';
+        } else {
+          actionCell.innerHTML = `<button type="button" class="btn btn-danger remove-tr">Hapus</button>`;
+        }
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.target.classList.contains('remove-tr')) {
+        const rows = document.querySelectorAll('#dynamicTable tbody tr');
+        if (rows.length > 1) {
+          e.target.closest('tr').remove();
+          updateJenisOptions();
+          updatePangkatOptions();
+          rebuildActionButtons();
+        } else {
+          alert('Minimal satu baris harus ada.');
+        }
+      }
+
+      if (e.target.classList.contains('add-tr')) {
+        const selectedJenis = Array.from(document.querySelectorAll('.jenis-select')).map(sel => sel.value);
+        const remainingJenis = jenisList.filter(jenis => !selectedJenis.includes(jenis));
+        if (remainingJenis.length === 0) {
+          alert('Jenis sudah habis, tidak bisa tambah baris.');
+          return;
+        }
+
+        i++;
+        const table = document.querySelector('#dynamicTable tbody');
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td><select name="data[${i}][jenis]" class="form-control jenis-select"></select></td>
+          <td><select name="data[${i}][pangkat]" class="form-control pangkat-select"></select></td>
+          <td><input type="number" name="data[${i}][masa_kerja_tahun]" class="form-control" min="0" /></td>
+          <td><input type="number" name="data[${i}][masa_kerja_bulan]" class="form-control" min="0" max="11" /></td>
+          <td><input type="date" name="data[${i}][tmt]" class="form-control" /></td>
+          <td></td>
+        `;
+        table.appendChild(newRow);
+        updateJenisOptions();
+        updatePangkatOptions();
+        rebuildActionButtons();
+      }
+    });
+
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('jenis-select')) updateJenisOptions();
+      if (e.target.classList.contains('pangkat-select')) updatePangkatOptions();
+    });
+
+    function getPangkatGroup(pangkat) {
+      if (!pangkat) return 0;
+      if (pangkat.startsWith('1')) return 1;
+      if (pangkat.startsWith('2')) return 2;
+      if (pangkat.startsWith('3')) return 3;
+      if (pangkat.startsWith('4')) return 4;
+      return 0;
+    }
+
+    function addYearsMonths(date, addYears, addMonths) {
+      const d = new Date(date.getTime());
+      const totalMonths = d.getMonth() + addMonths;
+      const newYear = d.getFullYear() + addYears + Math.floor(totalMonths / 12);
+      const newMonth = ((totalMonths % 12) + 12) % 12;
+      d.setFullYear(newYear);
+      d.setMonth(newMonth);
+      return d;
+    }
+
+    function sameYearMonth(a, b) {
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+    }
+
+    document.getElementById('validateBtn').addEventListener('click', function () {
+      const rows = document.querySelectorAll('#dynamicTable tbody tr');
+      const tmtList = [];
+      const mkList = [];
+      const selectedPangkatList = []; // renamed to avoid shadowing global pangkatList
+
+      const incompleteRows = [];
+
+      rows.forEach((row, idx) => {
+        const tmtVal = row.querySelector('input[type="date"]').value;
+        const tahunVal = row.querySelector('input[name*="masa_kerja_tahun"]').value;
+        const bulanVal = row.querySelector('input[name*="masa_kerja_bulan"]').value;
+        const pangkatVal = row.querySelector('.pangkat-select')?.value || '';
+
+        if (!tmtVal || tahunVal === '' || bulanVal === '') {
+          incompleteRows.push(idx + 1);
+          tmtList.push(null);
+          mkList.push(null);
+          selectedPangkatList.push(null);
+        } else {
+          tmtList.push(new Date(tmtVal));
+          mkList.push({ tahun: parseInt(tahunVal, 10), bulan: parseInt(bulanVal, 10) });
+          selectedPangkatList.push(pangkatVal);
+        }
+      });
+
+      if (incompleteRows.length > 0) {
+        alert(`Baris berikut belum lengkap: ${incompleteRows.join(', ')}. Harap isi TMT dan masa kerja sebelum pemeriksaan.`);
+        return;
+      }
+
+      for (let i = 1; i < rows.length; i++) {
+        const tmtPrev = tmtList[i - 1];
+        const tmtCurr = tmtList[i];
+        const mkPrev = mkList[i - 1];
+        const mkCurr = mkList[i];
+        const groupPrev = getPangkatGroup(selectedPangkatList[i - 1]);
+        const groupCurr = getPangkatGroup(selectedPangkatList[i]);
+
+        // Selisih MK
+        let dYear = mkCurr.tahun - mkPrev.tahun;
+        let dMonth = mkCurr.bulan - mkPrev.bulan;
+        if (dMonth < 0) {
+          dYear -= 1;
+          dMonth += 12;
+        }
+
+        // Pengurangan MK karena transisi
+        let pengurangTahun = 0;
+        if (groupPrev === 1 && groupCurr === 2) pengurangTahun = 6;
+        if (groupPrev === 2 && groupCurr === 3) pengurangTahun = 5;
+
+        const adjustedYear = dYear + pengurangTahun;
+        const adjustedMonth = dMonth;
+
+        // TMT yang diharapkan
+        const expectedTmt = addYearsMonths(tmtPrev, adjustedYear, adjustedMonth);
+
+        if (!sameYearMonth(expectedTmt, tmtCurr)) {
+          const expYm = `${expectedTmt.getFullYear()}-${String(expectedTmt.getMonth() + 1).padStart(2, '0')}`;
+          const currYm = `${tmtCurr.getFullYear()}-${String(tmtCurr.getMonth() + 1).padStart(2, '0')}`;
+          alert(`Baris ke-${i + 1}: TMT tidak konsisten.\nSelisih MK: ${dYear} tahun ${dMonth} bulan.\nPengurang karena transisi: ${pengurangTahun} tahun.\nTMT yang diharapkan: ${expYm}, TMT saat ini: ${currYm}.`);
+          return;
+        }
+      }
+
+      alert('✅ Semua data TMT dan masa kerja sudah konsisten.');
+    });
+
+    function initDataAwal() {
+      const presetData = [
+        { jenis: 'cpns', pangkat: '2C', tahun: 3, bulan: 0, tmt: '2020-12-01' },
+        { jenis: 'pns', pangkat: '2C', tahun: 4, bulan: 5, tmt: '2022-05-01' },
+        { jenis: 'pangkat1', pangkat: '2D', tahun: 7, bulan: 0, tmt: '2024-12-01' },
+        { jenis: 'pangkat2', pangkat: '3A', tahun: 2, bulan: 4, tmt: '2025-04-01' }
+      ];
+
+      const tbody = document.querySelector('#dynamicTable tbody');
+      tbody.innerHTML = '';
+
+      presetData.forEach((data, i) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><select name="data[${i}][jenis]" class="form-control jenis-select"></select></td>
+          <td><select name="data[${i}][pangkat]" class="form-control pangkat-select"></select></td>
+          <td><input type="number" name="data[${i}][masa_kerja_tahun]" class="form-control" min="0" value="${data.tahun}" /></td>
+          <td><input type="number" name="data[${i}][masa_kerja_bulan]" class="form-control" min="0" max="11" value="${data.bulan}" /></td>
+          <td><input type="date" name="data[${i}][tmt]" class="form-control" value="${data.tmt}" /></td>
+          <td></td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      updateJenisOptions();
+      updatePangkatOptions();
+
+      const jenisSelects = document.querySelectorAll('.jenis-select');
+      const pangkatSelects = document.querySelectorAll('.pangkat-select');
+
+      presetData.forEach((data, i) => {
+        if (jenisSelects[i]) jenisSelects[i].value = data.jenis;
+        if (pangkatSelects[i]) pangkatSelects[i].value = data.pangkat;
+      });
+
+      rebuildActionButtons();
+    }
+
+    // Inisialisasi awal
+    updateJenisOptions();
+    updatePangkatOptions();
+    rebuildActionButtons();
+    // initDataAwal();
+
+    // Replace Blade's @if(request()->has('data')) ... by reading URLSearchParams
+    (function showSubmittedDataFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      // Collect all data[...] entries
+      const dataObj = {};
+      let hasData = false;
+
+      for (const [key, value] of params.entries()) {
+        if (key.startsWith('data[')) {
+          hasData = true;
+          // Try to parse keys like data[0][jenis]
+          const match = key.match(/^data\[(\d+)\]\[(.+)\]$/);
+          if (match) {
+            const rowIdx = match[1];
+            const field = match[2];
+            dataObj[rowIdx] = dataObj[rowIdx] || {};
+            dataObj[rowIdx][field] = value;
+          } else {
+            // Fallback: store raw
+            dataObj[key] = value;
+          }
+        }
+      }
+
+      if (hasData) {
+        const el = document.getElementById('submittedData');
+        const pre = document.getElementById('submittedDataPre');
+        el.style.display = 'block';
+        pre.textContent = JSON.stringify(dataObj, null, 2);
+      }
+    })();
+  </script>
+</body>
+</html>
