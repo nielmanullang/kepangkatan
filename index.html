@@ -20,6 +20,19 @@
 
     <form method="GET" action="">
       <div class="table-responsive">
+        <div class="row mb-2">
+          <div class="col-3">
+            <label for="tanggal_lahir" class="form-label">Tanggal Lahir Pegawai</label>
+            <input type="date" name="tanggal_lahir" id="tanggal_lahir" 
+                  class="form-control form-control-sm" required />
+          </div>
+          <div class="col-3">
+            <label for="bup" class="form-label">BUP</label>
+            <input type="number" name="bup" id="bup" 
+                  class="form-control form-control-sm" required />
+          </div>
+        </div>
+
         <table class="table table-bordered" id="dynamicTable">
           <thead class="table-light">
             <tr>
@@ -201,13 +214,14 @@
       const selectedPangkatList = []; // renamed to avoid shadowing global pangkatList
 
       const incompleteRows = [];
-
+      const tanggalLahirVal = document.querySelector('#tanggal_lahir').value;
+      const bup = document.querySelector('#bup').value;
       rows.forEach((row, idx) => {
         const tmtVal = row.querySelector('input[type="date"]').value;
         const tahunVal = row.querySelector('input[name*="masa_kerja_tahun"]').value;
         const bulanVal = row.querySelector('input[name*="masa_kerja_bulan"]').value;
         const pangkatVal = row.querySelector('.pangkat-select')?.value || '';
-
+        
         if (!tmtVal || tahunVal === '' || bulanVal === '') {
           incompleteRows.push(idx + 1);
           tmtList.push(null);
@@ -219,7 +233,22 @@
           selectedPangkatList.push(pangkatVal);
         }
       });
+      const tanggalPensiun = hitungTanggalPensiun(tanggalLahirVal, bup);
+      const firstRow = rows[0]; // ambil baris pertama
+      const tmtCpnsVal = firstRow.querySelector('input[type="date"]').value;
+      const masa_kerja = hitungMasaKerja(tmtCpnsVal, tanggalPensiun);
 
+      const lastRow = rows[rows.length - 1]; // ambil baris terakhir
+      const tmtLastVal = lastRow.querySelector('input[type="date"]').value;
+
+      const tanggalPensiunDate = new Date(tanggalPensiun);
+      const tmtLastDate = new Date(tmtLastVal);
+      // selisih dalam milidetik
+      const diffMs = tanggalPensiunDate - tmtLastDate;
+      // konversi ke tahun (approx)
+      const diffYears = diffMs / (1000 * 60 * 60 * 24 * 365);
+      const diffYearsInt = Math.floor(diffYears); // atau Math.round(diffYears)
+      
       if (incompleteRows.length > 0) {
         alert(`Baris berikut belum lengkap: ${incompleteRows.join(', ')}. Harap isi TMT dan masa kerja sebelum pemeriksaan.`);
         return;
@@ -268,8 +297,15 @@
             return;
         }
       }
-
-      alert('✅ Semua data TMT dan masa kerja sudah konsisten.');
+      let pesan = '✅ Semua data TMT dan masa kerja sudah konsisten.\n';
+      pesan += 'masa Kerja '+masa_kerja.tahun+' tahun '+masa_kerja.bulan+' bulan\n';
+      pesan += `TMT Pensiun ${String(new Date(tanggalPensiun).getDate()).padStart(2,'0')}-${String(new Date(tanggalPensiun).getMonth()+1).padStart(2,'0')}-${new Date(tanggalPensiun).getFullYear()}\n`;
+      if(masa_kerja.tahun >= 20 && diffYearsInt >= 1 || masa_kerja.tahun >= 10 && diffYearsInt >= 2){
+        pesan += 'mendapatkan Kenaikan Pangkat Pengabdian';
+      }else{
+        pesan += 'tanpa Kenaikan Pangkat Pengabdian';
+      }
+      alert(pesan);
     });
 
     function initDataAwal() {
@@ -282,7 +318,10 @@
 
       const tbody = document.querySelector('#dynamicTable tbody');
       tbody.innerHTML = '';
-
+      const tanggalLahirPegawai = "1994-05-22"; // format YYYY-MM-DD 
+      // set nilai ke input 
+      document.getElementById("tanggal_lahir").value = tanggalLahirPegawai;
+      document.getElementById("bup").value = 58;
       presetData.forEach((data, i) => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -315,6 +354,31 @@
     updatePangkatOptions();
     rebuildActionButtons();
     // initDataAwal();
+
+    function hitungTanggalPensiun(tanggalLahir, bup) {
+      if (!tanggalLahir || !bup) {
+        console.warn("Tanggal lahir atau BUP belum diisi!");
+        return null;
+      }
+      const lahir = new Date(tanggalLahir);
+      // Tambahkan usia pensiun sesuai input BUP
+      lahir.setFullYear(lahir.getFullYear() + parseInt(bup, 10));
+      // Bulatkan ke awal bulan berikutnya (misalnya aturan pensiun selalu tanggal 1)
+      lahir.setMonth(lahir.getMonth() + 1);
+      lahir.setDate(1);
+      return lahir.toISOString().split('T')[0]; // format YYYY-MM-DD
+    }
+
+    function hitungMasaKerja(tmtAwal, tanggalPensiun) {
+      const awal = new Date(tmtAwal);
+      const pensiun = new Date(tanggalPensiun);
+      const tahun = pensiun.getFullYear() - awal.getFullYear();
+      const bulan = pensiun.getMonth() - awal.getMonth();
+      return {
+        tahun: bulan < 0 ? tahun - 1 : tahun,
+        bulan: (bulan + 12) % 12
+      };
+    }
 
     // Replace Blade's @if(request()->has('data')) ... by reading URLSearchParams
     (function showSubmittedDataFromQuery() {
