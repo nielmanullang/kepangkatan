@@ -245,10 +245,10 @@
       const tmtLastDate = new Date(tmtLastVal);
       // selisih dalam milidetik
       const diffMs = tanggalPensiunDate - tmtLastDate;
-      // konversi ke tahun (approx)
-      const diffYears = diffMs / (1000 * 60 * 60 * 24 * 365);
-      const diffYearsInt = Math.floor(diffYears); // atau Math.round(diffYears)
-      
+      // konversi ke bulan (approx)
+      const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30);
+      const diffMonthsInt = Math.floor(diffMonths); // atau Math.round(diffMonths)
+
       if (incompleteRows.length > 0) {
         alert(`Baris berikut belum lengkap: ${incompleteRows.join(', ')}. Harap isi TMT dan masa kerja sebelum pemeriksaan.`);
         return;
@@ -300,7 +300,7 @@
       let pesan = '✅ Semua data TMT dan masa kerja sudah konsisten.\n';
       pesan += 'masa Kerja '+masa_kerja.tahun+' tahun '+masa_kerja.bulan+' bulan\n';
       pesan += `TMT Pensiun ${String(new Date(tanggalPensiun).getDate()).padStart(2,'0')}-${String(new Date(tanggalPensiun).getMonth()+1).padStart(2,'0')}-${new Date(tanggalPensiun).getFullYear()}\n`;
-      if(masa_kerja.tahun >= 20 && diffYearsInt >= 1 || masa_kerja.tahun >= 10 && diffYearsInt >= 2){
+      if(masa_kerja.tahun >= 30 && diffMonthsInt >= 1 || masa_kerja.tahun >= 20 && diffMonthsInt >= 12 || masa_kerja.tahun >= 10 && diffMonthsInt >= 24){
         pesan += 'mendapatkan Kenaikan Pangkat Pengabdian';
       }else{
         pesan += 'tanpa Kenaikan Pangkat Pengabdian';
