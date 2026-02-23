@@ -103,10 +103,10 @@
       document.querySelectorAll('.pangkat-select').forEach(sel => {
         const currentValue = sel.value;
         sel.innerHTML = pangkatList.map((p, idx) => {
-          if (idx >= maxIndex || p === currentValue) {
+          // if (idx >= maxIndex || p === currentValue) {
             return `<option value="${p}" ${p === currentValue ? 'selected' : ''}>${p}</option>`;
-          }
-          return '';
+          // }
+          // return '';
         }).join('');
       });
     }
