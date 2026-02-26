@@ -236,7 +236,10 @@
       const tanggalPensiun = hitungTanggalPensiun(tanggalLahirVal, bup);
       const firstRow = rows[0]; // ambil baris pertama
       const tmtCpnsVal = firstRow.querySelector('input[type="date"]').value;
-      const masa_kerja = hitungMasaKerja(tmtCpnsVal, tanggalPensiun);
+      const tmtCpnsTahun = firstRow.querySelector('input[name*="masa_kerja_tahun"]').value;
+      const tmtCpnsBulan = firstRow.querySelector('input[name*="masa_kerja_bulan"]').value;
+      const masa_kerja = hitungMasaKerjaPensiun(tmtCpnsVal, tanggalPensiun);
+      const masa_kerja_golongan = hitungMasaKerjaGolongan(tmtCpnsVal, tanggalPensiun, tmtCpnsTahun, tmtCpnsBulan);
 
       const lastRow = rows[rows.length - 1]; // ambil baris terakhir
       const tmtLastVal = lastRow.querySelector('input[type="date"]').value;
@@ -298,7 +301,8 @@
         }
       }
       let pesan = '✅ Semua data TMT dan masa kerja sudah konsisten.\n';
-      pesan += 'masa Kerja '+masa_kerja.tahun+' tahun '+masa_kerja.bulan+' bulan\n';
+      pesan += 'masa Kerja Golongan '+masa_kerja.tahun+' tahun '+masa_kerja.bulan+' bulan\n';
+      pesan += 'masa Kerja Pensiun '+masa_kerja_golongan.tahun+' tahun '+masa_kerja_golongan.bulan+' bulan\n';
       pesan += `TMT Pensiun ${String(new Date(tanggalPensiun).getDate()).padStart(2,'0')}-${String(new Date(tanggalPensiun).getMonth()+1).padStart(2,'0')}-${new Date(tanggalPensiun).getFullYear()}\n`;
       if(masa_kerja.tahun >= 30 && diffMonthsInt >= 1 || masa_kerja.tahun >= 20 && diffMonthsInt >= 12 || masa_kerja.tahun >= 10 && diffMonthsInt >= 24){
         pesan += 'mendapatkan Kenaikan Pangkat Pengabdian';
@@ -369,11 +373,22 @@
       return lahir.toISOString().split('T')[0]; // format YYYY-MM-DD
     }
 
-    function hitungMasaKerja(tmtAwal, tanggalPensiun) {
+    function hitungMasaKerjaPensiun(tmtAwal, tanggalPensiun) {
       const awal = new Date(tmtAwal);
       const pensiun = new Date(tanggalPensiun);
       const tahun = pensiun.getFullYear() - awal.getFullYear();
       const bulan = pensiun.getMonth() - awal.getMonth();
+      return {
+        tahun: bulan < 0 ? tahun - 1 : tahun,
+        bulan: (bulan + 12) % 12
+      };
+    }
+
+    function hitungMasaKerjaGolongan(tmtAwal, tanggalPensiun, tahun_awal, bulan_awal) {
+      const awal = new Date(tmtAwal);
+      const pensiun = new Date(tanggalPensiun);
+      const tahun = pensiun.getFullYear() - awal.getFullYear() + parseInt(tahun_awal, 10);
+      const bulan = pensiun.getMonth() - awal.getMonth() + parseInt(bulan_awal, 10);
       return {
         tahun: bulan < 0 ? tahun - 1 : tahun,
         bulan: (bulan + 12) % 12
